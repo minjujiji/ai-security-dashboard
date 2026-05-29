@@ -36,7 +36,7 @@ A full-stack cybersecurity dashboard that analyzes security logs, detects suspic
 
 ## Project Architecture
 
-[Architecture Diagram Coming Soon]
+![Architecture](docs/architecture.png)
 
 ---
 

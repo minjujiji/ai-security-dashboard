@@ -5,6 +5,7 @@ Parse entries
 Store in database
 Return results */
 
+const fs = require("fs");
 
 const uploadLog = async (req, res) => {
   try {
@@ -14,9 +15,12 @@ const uploadLog = async (req, res) => {
       });
     }
 
+    const fileContent = fs.readFileSync( req.file.path, "utf8" );
+
     res.status(200).json({
-      message: "File uploaded successfully",
-      filename: req.file.filename,
+        message: "File processed successfully",
+        filename: req.file.filename,
+        content: fileContent,
     });
 
   } catch (error) {

@@ -35,29 +35,27 @@ const Logs = () => {
         Security Log Events
       </h1>
 
-        <table border={1}>
-            <thead>
-            <tr>
-                <th>Timestamp</th>
-                <th>Event Type</th>
-                <th>IP Address</th>
-                <th>Raw Log</th>
-            </tr>
+        <table className="w-full bg-white rounded-lg shadow overflow-hidden">
+            <thead className="bg-gray-900 text-white">
+                <tr>
+                <th className="p-3 text-left">Timestamp</th>
+                <th className="p-3 text-left">Event Type</th>
+                <th className="p-3 text-left">IP Address</th>
+                <th className="p-3 text-left">Raw Log</th>
+                </tr>
             </thead>
 
             <tbody>
-            {events.map((event) => (
-                <tr key={event.id}>
-                <td>
-                    {new Date(
-                    event.event_timestamp
-                    ).toLocaleString()}
-                </td>
-                <td>{event.event_type}</td>
-                <td>{event.ip_address}</td>
-                <td>{event.raw_log}</td>
+                {events.map((event) => (
+                <tr key={event.id} className="border-b hover:bg-gray-50">
+                    <td className="p-3">
+                    {new Date(event.event_timestamp).toLocaleString()}
+                    </td>
+                    <td className="p-3 font-medium">{event.event_type}</td>
+                    <td className="p-3">{event.ip_address}</td>
+                    <td className="p-3 text-sm text-gray-600">{event.raw_log}</td>
                 </tr>
-            ))}
+                ))}
             </tbody>
         </table>
     </main>

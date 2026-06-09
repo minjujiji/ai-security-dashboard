@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # AI-Powered Security Dashboard
 
 A full-stack cybersecurity dashboard that analyzes security logs, detects suspicious activity, and visualizes threats using AI-assisted analysis.
@@ -61,4 +60,3 @@ ai-security-dashboard/
 =======
 # ai-security-dashboard
 AI-powered dashboard for analyzing and visualizing suspicious security activity using log analysis and threat classification.
->>>>>>> 25bbd178800a39976c46304ba9a9459008b95656

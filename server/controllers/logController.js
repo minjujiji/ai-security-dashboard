@@ -162,8 +162,41 @@ const getAllAlerts = async (req, res) => {
   }
 };
 
+const getDashboardSummary = async (req, res) => {
+  try {
+    const totalEvents = await pool.query(
+      "SELECT COUNT(*) FROM log_events"
+    );
+
+    const totalAlerts = await pool.query(
+      "SELECT COUNT(*) FROM alerts"
+    );
+
+    const highAlerts = await pool.query(
+      "SELECT COUNT(*) FROM alerts WHERE severity = 'High'"
+    );
+
+    const failedLogins = await pool.query(
+      "SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN'"
+    );
+
+    res.status(200).json({
+      totalEvents: Number(totalEvents.rows[0].count),
+      totalAlerts: Number(totalAlerts.rows[0].count),
+      highAlerts: Number(highAlerts.rows[0].count),
+      failedLogins: Number(failedLogins.rows[0].count),
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
 module.exports = {
   uploadLog,
   getAllEvents,
-  getAllAlerts
+  getAllAlerts,
+  getDashboardSummary
 };

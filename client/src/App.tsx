@@ -14,10 +14,10 @@ function App() {
       <Routes>
         <Route path="/" element={<Login />} />
         <Route path="/register" element={<Register />} />
-        <Route path="/logs" element={<Logs />} />
+        <Route path="/logs" element={<ProtectedRoute><Logs /></ProtectedRoute>} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}/>
-        <Route path="/alerts" element={<Alerts />} />
-        <Route path="/upload" element={<UploadLogs />} />
+        <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
+        <Route path="/upload" element={<ProtectedRoute><UploadLogs /></ProtectedRoute>} />
       </Routes>
     </BrowserRouter>
   );

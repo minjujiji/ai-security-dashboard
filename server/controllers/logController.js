@@ -162,6 +162,41 @@ const getAllAlerts = async (req, res) => {
   }
 };
 
+const getEventsByType = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT event_type, COUNT(*) 
+       FROM log_events
+       GROUP BY event_type
+       ORDER BY COUNT(*) DESC`
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+const getAlertsBySeverity = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT severity, COUNT(*)
+       FROM alerts
+       GROUP BY severity
+       ORDER BY COUNT(*) DESC`
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 const getDashboardSummary = async (req, res) => {
   try {
     const totalEvents = await pool.query(
@@ -180,14 +215,72 @@ const getDashboardSummary = async (req, res) => {
       "SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN'"
     );
 
+    const riskScore = Number(highAlerts.rows[0].count) * 30 + Number(failedLogins.rows[0].count) * 5;
+
+    const finalRiskScore = Math.min(riskScore, 100);
+
     res.status(200).json({
       totalEvents: Number(totalEvents.rows[0].count),
       totalAlerts: Number(totalAlerts.rows[0].count),
       highAlerts: Number(highAlerts.rows[0].count),
       failedLogins: Number(failedLogins.rows[0].count),
+      riskScore: finalRiskScore,
     });
   } catch (error) {
     console.error(error);
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
+const getRecentAlerts = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM alerts
+       ORDER BY created_at DESC
+       LIMIT 5`
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getRecentEvents = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT *
+       FROM log_events
+       ORDER BY event_timestamp DESC
+       LIMIT 5`
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getTopAttackingIPs = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT ip_address, COUNT(*) AS failed_attempts
+       FROM log_events
+       WHERE event_type = 'FAILED_LOGIN'
+       GROUP BY ip_address
+       ORDER BY failed_attempts DESC
+       LIMIT 5`
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error(error);
+
     res.status(500).json({
       message: "Server error",
     });
@@ -198,5 +291,10 @@ module.exports = {
   uploadLog,
   getAllEvents,
   getAllAlerts,
-  getDashboardSummary
+  getDashboardSummary,
+  getEventsByType,
+  getAlertsBySeverity,
+  getRecentAlerts,
+  getRecentEvents,
+  getTopAttackingIPs
 };

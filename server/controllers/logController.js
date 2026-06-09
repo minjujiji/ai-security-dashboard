@@ -24,6 +24,30 @@ const parseLogContent = (content) => {
   });
 };
 
+const detectThreats = (parsedLogs) => {
+  const failedLoginCounts = {};
+  const alerts = [];
+
+  parsedLogs.forEach((log) => {
+    if (log.eventType === "FAILED_LOGIN") {
+      failedLoginCounts[log.ipAddress] =
+        (failedLoginCounts[log.ipAddress] || 0) + 1;
+    }
+  });
+
+  Object.keys(failedLoginCounts).forEach((ip) => {
+    if (failedLoginCounts[ip] >= 3) {
+      alerts.push({
+        severity: "High",
+        message: `Possible brute-force attack detected from IP ${ip}`,
+        ipAddress: ip,
+      });
+    }
+  });
+
+  return alerts;
+};
+
 const uploadLog = async (req, res) => {
   try {
     if (!req.file) {
@@ -34,6 +58,7 @@ const uploadLog = async (req, res) => {
 
     const fileContent = fs.readFileSync(req.file.path, "utf8");
     const parsedLogs = parseLogContent(fileContent);
+    const detectedAlerts = detectThreats(parsedLogs);
 
     const savedLog = await pool.query(
       "INSERT INTO logs (filename) VALUES ($1) RETURNING *",
@@ -62,12 +87,33 @@ const uploadLog = async (req, res) => {
       savedEvents.push(result.rows[0]);
     }
 
+    const savedAlerts = [];
+
+    for (const alert of detectedAlerts) {
+      const result = await pool.query(
+        `INSERT INTO alerts 
+        (log_id, severity, message, ip_address)
+        VALUES ($1, $2, $3, $4)
+        RETURNING *`,
+        [
+          logId,
+          alert.severity,
+          alert.message,
+          alert.ipAddress,
+        ]
+      );
+
+      savedAlerts.push(result.rows[0]);
+    }
+
     res.status(200).json({
       message: "Log file uploaded, parsed, and saved successfully",
       filename: req.file.filename,
       logId,
       totalEvents: savedEvents.length,
       events: savedEvents,
+      alerts: savedAlerts,
+      totalAlerts: savedAlerts.length,
     });
   } catch (error) {
     console.error(error);
@@ -99,7 +145,25 @@ const getAllEvents = async (req, res) => {
   }
 };
 
+const getAllAlerts = async (req, res) => {
+  try {
+    const alerts = await pool.query(
+      `SELECT * FROM alerts
+       ORDER BY created_at DESC`
+    );
+
+    res.status(200).json(alerts.rows);
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
 module.exports = {
   uploadLog,
-  getAllEvents
+  getAllEvents,
+  getAllAlerts
 };

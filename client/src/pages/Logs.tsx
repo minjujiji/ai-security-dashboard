@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
+import Sidebar from "../components/Sidebar";
 
 interface LogEvent {
   id: number;
@@ -25,34 +26,41 @@ const Logs = () => {
   }, []);
 
   return (
-    <div>
-      <h1>Security Log Events</h1>
 
-      <table border={1}>
-        <thead>
-          <tr>
-            <th>Timestamp</th>
-            <th>Event Type</th>
-            <th>IP Address</th>
-            <th>Raw Log</th>
-          </tr>
-        </thead>
+    <div className="flex min-h-screen bg-gray-100">
+    <Sidebar />
 
-        <tbody>
-          {events.map((event) => (
-            <tr key={event.id}>
-              <td>
-                {new Date(
-                  event.event_timestamp
-                ).toLocaleString()}
-              </td>
-              <td>{event.event_type}</td>
-              <td>{event.ip_address}</td>
-              <td>{event.raw_log}</td>
+    <main className="flex-1 p-8">
+      <h1 className="text-3xl font-bold mb-6">
+        Security Log Events
+      </h1>
+
+        <table border={1}>
+            <thead>
+            <tr>
+                <th>Timestamp</th>
+                <th>Event Type</th>
+                <th>IP Address</th>
+                <th>Raw Log</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+            </thead>
+
+            <tbody>
+            {events.map((event) => (
+                <tr key={event.id}>
+                <td>
+                    {new Date(
+                    event.event_timestamp
+                    ).toLocaleString()}
+                </td>
+                <td>{event.event_type}</td>
+                <td>{event.ip_address}</td>
+                <td>{event.raw_log}</td>
+                </tr>
+            ))}
+            </tbody>
+        </table>
+    </main>
     </div>
   );
 };

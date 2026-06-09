@@ -5,6 +5,7 @@ import Register from "./pages/Register";
 import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Logs from "./pages/Logs";
+import UploadLogs from "./pages/UploadLogs";
 import Alerts from "./pages/Alerts";
 
 function App() {
@@ -16,6 +17,7 @@ function App() {
         <Route path="/logs" element={<Logs />} />
         <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>}/>
         <Route path="/alerts" element={<Alerts />} />
+        <Route path="/upload" element={<UploadLogs />} />
       </Routes>
     </BrowserRouter>
   );

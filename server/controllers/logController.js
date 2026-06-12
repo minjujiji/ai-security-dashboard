@@ -287,6 +287,30 @@ const getTopAttackingIPs = async (req, res) => {
   }
 };
 
+const getRecommendations = async (req, res) => {
+  try {
+    const topIPs = await pool.query(
+      `SELECT ip_address, COUNT(*) AS failed_attempts
+       FROM log_events
+       WHERE event_type = 'FAILED_LOGIN'
+       GROUP BY ip_address
+       HAVING COUNT(*) >= 3
+       ORDER BY failed_attempts DESC`
+    );
+
+    const recommendations = topIPs.rows.map((ip) => ({
+      title: `Block or monitor IP ${ip.ip_address}`,
+      description: `${ip.ip_address} has ${ip.failed_attempts} failed login attempts. This may indicate brute-force activity.`,
+      priority: "High",
+    }));
+
+    res.status(200).json(recommendations);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
 module.exports = {
   uploadLog,
   getAllEvents,
@@ -296,5 +320,6 @@ module.exports = {
   getAlertsBySeverity,
   getRecentAlerts,
   getRecentEvents,
-  getTopAttackingIPs
+  getTopAttackingIPs,
+  getRecommendations,
 };

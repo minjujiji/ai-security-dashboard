@@ -42,6 +42,12 @@ interface TopIP {
   failed_attempts: string;
 }
 
+interface Recommendation {
+  title: string;
+  description: string;
+  priority: string;
+}
+
 const Dashboard = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [eventTypes, setEventTypes] = useState<EventTypeData[]>([]);
@@ -49,6 +55,7 @@ const Dashboard = () => {
   const [recentAlerts, setRecentAlerts] = useState<RecentAlert[]>([]);
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [topIPs, setTopIPs] = useState<TopIP[]>([]);
+  const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -58,6 +65,7 @@ const Dashboard = () => {
       const recentAlertsResponse = await axios.get("http://localhost:5000/api/logs/recent-alerts");
       const recentEventsResponse = await axios.get("http://localhost:5000/api/logs/recent-events");
       const topIPsResponse = await axios.get("http://localhost:5000/api/logs/top-attacking-ips");
+      const recommendationsResponse = await axios.get("http://localhost:5000/api/logs/recommendations");
 
       
       setEventTypes(eventTypeResponse.data);
@@ -66,6 +74,7 @@ const Dashboard = () => {
       setRecentAlerts(recentAlertsResponse.data);
       setRecentEvents(recentEventsResponse.data);
       setTopIPs(topIPsResponse.data);
+      setRecommendations(recommendationsResponse.data);
     };
 
     fetchSummary();
@@ -235,6 +244,35 @@ const Dashboard = () => {
 
                 <span className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm font-medium">
                   {ip.failed_attempts} failed attempts
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 className="text-xl font-bold mb-4">
+          Security Recommendations
+        </h2>
+
+        {recommendations.length === 0 ? (
+          <p className="text-gray-500">
+            No high-priority recommendations at this time.
+          </p>
+        ) : (
+          <div className="space-y-4">
+            {recommendations.map((item, index) => (
+              <div
+                key={index}
+                className="border-l-4 border-red-500 pl-4 py-2"
+              >
+                <p className="font-semibold">{item.title}</p>
+                <p className="text-sm text-gray-600">
+                  {item.description}
+                </p>
+                <span className="inline-block mt-2 bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs font-medium">
+                  {item.priority} Priority
                 </span>
               </div>
             ))}

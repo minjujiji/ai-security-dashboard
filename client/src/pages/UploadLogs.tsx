@@ -21,22 +21,18 @@ const UploadLogs = () => {
     try {
       setLoading(true);
 
-      const response = await axios.post(
-        "http://localhost:5000/api/logs/upload",
-        formData,
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/logs/upload`,formData,
         {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
+          headers: {"Content-Type": "multipart/form-data",},
         }
       );
 
       setResult(response.data);
       alert("File uploaded successfully");
-    } catch (error) {
-      console.error(error);
-      alert("Upload failed");
-    } finally {
+    } catch (error: any) {
+        console.error(error);
+        alert(error.response?.data?.message || "Upload failed");
+     } finally {
       setLoading(false);
     }
   };

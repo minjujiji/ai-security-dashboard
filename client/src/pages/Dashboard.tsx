@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import axios from "axios";
 import Sidebar from "../components/Sidebar";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
+import jsPDF from "jspdf";
 
 interface Summary {
   totalEvents: number;
@@ -59,13 +60,13 @@ const Dashboard = () => {
 
   useEffect(() => {
     const fetchSummary = async () => {
-      const response = await axios.get("http://localhost:5000/api/logs/summary");
-      const eventTypeResponse = await axios.get( "http://localhost:5000/api/logs/event-types");
-      const alertSeverityResponse = await axios.get("http://localhost:5000/api/logs/alert-severity");
-      const recentAlertsResponse = await axios.get("http://localhost:5000/api/logs/recent-alerts");
-      const recentEventsResponse = await axios.get("http://localhost:5000/api/logs/recent-events");
-      const topIPsResponse = await axios.get("http://localhost:5000/api/logs/top-attacking-ips");
-      const recommendationsResponse = await axios.get("http://localhost:5000/api/logs/recommendations");
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/summary`);
+      const eventTypeResponse = await axios.get( `${import.meta.env.VITE_API_URL}/api/logs/event-types`);
+      const alertSeverityResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/alert-severity`);
+      const recentAlertsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-alerts`);
+      const recentEventsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-events`);
+      const topIPsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/top-attacking-ips`);
+      const recommendationsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recommendations`);
 
       
       setEventTypes(eventTypeResponse.data);
@@ -80,6 +81,34 @@ const Dashboard = () => {
     fetchSummary();
   }, []);
 
+  const downloadReport = () => {
+  if (!summary) return;
+
+  const doc = new jsPDF();
+
+  doc.setFontSize(18);
+  doc.text("Security Analysis Report", 20, 20);
+
+  doc.setFontSize(12);
+  doc.text(`Total Events: ${summary.totalEvents}`, 20, 40);
+  doc.text(`Total Alerts: ${summary.totalAlerts}`, 20, 50);
+  doc.text(`High Alerts: ${summary.highAlerts}`, 20, 60);
+  doc.text(`Failed Logins: ${summary.failedLogins}`, 20, 70);
+  doc.text(`Risk Score: ${summary.riskScore}/100`, 20, 80);
+
+  doc.text("Recommendations:", 20, 100);
+
+  recommendations.forEach((item, index) => {
+    doc.text(
+      `${index + 1}. ${item.title}`,
+      20,
+      115 + index * 10
+    );
+  });
+
+  doc.save("security-report.pdf");
+};
+
   if (!summary) {
     return <p>Loading dashboard...</p>;
   }
@@ -92,6 +121,10 @@ const Dashboard = () => {
       <h1 className="text-3xl font-bold mb-6">
         Security Dashboard
       </h1>
+
+      <button onClick={downloadReport} className="mb-6 bg-gray-900 text-white px-5 py-2 rounded-lg hover:bg-gray-700">
+        Download Security Report
+      </button>
 
       <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
         <div className="bg-white p-6 rounded-lg shadow">

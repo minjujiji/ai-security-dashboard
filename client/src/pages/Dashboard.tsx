@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import Sidebar from "../components/Sidebar";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line,  } from "recharts";
 import jsPDF from "jspdf";
 
 interface Summary {
@@ -49,6 +49,11 @@ interface Recommendation {
   priority: string;
 }
 
+interface TimelineData {
+  event_date: string;
+  count: string;
+}
+
 const Dashboard = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [eventTypes, setEventTypes] = useState<EventTypeData[]>([]);
@@ -57,6 +62,8 @@ const Dashboard = () => {
   const [recentEvents, setRecentEvents] = useState<RecentEvent[]>([]);
   const [topIPs, setTopIPs] = useState<TopIP[]>([]);
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
+  const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
+  const [securitySummary, setSecuritySummary] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -67,6 +74,8 @@ const Dashboard = () => {
       const recentEventsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-events`);
       const topIPsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/top-attacking-ips`);
       const recommendationsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recommendations`);
+      const timelineResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/event-timeline`);
+      const securitySummaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/security-summary`);
 
       
       setEventTypes(eventTypeResponse.data);
@@ -76,6 +85,8 @@ const Dashboard = () => {
       setRecentEvents(recentEventsResponse.data);
       setTopIPs(topIPsResponse.data);
       setRecommendations(recommendationsResponse.data);
+      setTimelineData(timelineResponse.data);
+      setSecuritySummary(securitySummaryResponse.data.summary);
     };
 
     fetchSummary();
@@ -313,6 +324,61 @@ const Dashboard = () => {
         )}
       </div>
 
+      <div className="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 className="text-xl font-bold mb-4">
+          Event Timeline
+        </h2>
+
+        <div className="h-80">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={timelineData}>
+              <XAxis
+                dataKey="event_date"
+                tickFormatter={(value) =>
+                  new Date(value).toLocaleDateString()
+                }
+              />
+
+              <YAxis />
+
+              <Tooltip
+                labelFormatter={(value) =>
+                  new Date(value).toLocaleDateString()
+                }
+              />
+
+              <Line
+                type="monotone"
+                dataKey="count"
+                strokeWidth={2}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 className="text-xl font-bold mb-4">
+          AI Security Summary
+        </h2>
+
+        {securitySummary.length === 0 ? (
+          <p className="text-gray-500">
+            No security summary available.
+          </p>
+        ) : (
+          <ul className="space-y-3">
+            {securitySummary.map((item, index) => (
+              <li
+                key={index}
+                className="border-l-4 border-blue-500 pl-4 text-gray-700"
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
 
     </main>
   </div>

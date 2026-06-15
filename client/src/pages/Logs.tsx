@@ -16,7 +16,7 @@ const Logs = () => {
   useEffect(() => {
     const fetchEvents = async () => {
       const response = await axios.get(
-        "http://localhost:5000/api/logs/events"
+        `${import.meta.env.VITE_API_URL}/api/logs/events`
       );
 
       setEvents(response.data);

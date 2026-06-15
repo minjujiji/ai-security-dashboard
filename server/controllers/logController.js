@@ -311,6 +311,67 @@ const getRecommendations = async (req, res) => {
   }
 };
 
+const getEventTimeline = async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT DATE(event_timestamp) AS date, COUNT(*) AS count
+       FROM log_events
+       GROUP BY DATE(event_timestamp)
+       ORDER BY date ASC`
+    );
+
+    res.status(200).json(result.rows);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+const getSecuritySummary = async (req, res) => {
+  try {
+    const totalEvents = await pool.query(
+      "SELECT COUNT(*) FROM log_events"
+    );
+
+    const failedLogins = await pool.query(
+      "SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN'"
+    );
+
+    const totalAlerts = await pool.query(
+      "SELECT COUNT(*) FROM alerts"
+    );
+
+    const topIP = await pool.query(
+      `SELECT ip_address, COUNT(*) AS failed_attempts
+       FROM log_events
+       WHERE event_type = 'FAILED_LOGIN'
+       GROUP BY ip_address
+       ORDER BY failed_attempts DESC
+       LIMIT 1`
+    );
+
+    const topIpAddress =
+      topIP.rows.length > 0 ? topIP.rows[0].ip_address : "None";
+
+    const summary = [
+      `${totalEvents.rows[0].count} log events were analyzed.`,
+      `${failedLogins.rows[0].count} failed login attempts were detected.`,
+      `${totalAlerts.rows[0].count} security alerts were generated.`,
+      `Highest-risk IP address: ${topIpAddress}.`,
+      "Recommended action: Review repeated failed logins, monitor suspicious IPs, and consider blocking high-risk sources.",
+    ];
+
+    res.status(200).json({
+      summary,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      message: "Server error",
+    });
+  }
+};
+
 module.exports = {
   uploadLog,
   getAllEvents,
@@ -322,4 +383,6 @@ module.exports = {
   getRecentEvents,
   getTopAttackingIPs,
   getRecommendations,
+  getEventTimeline,
+  getSecuritySummary
 };

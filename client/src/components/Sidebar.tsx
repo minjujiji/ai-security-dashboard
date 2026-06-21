@@ -9,7 +9,7 @@ const Sidebar = () => {
   };
 
   return (
-    <div className="w-64 min-h-screen bg-gray-900 text-white p-6">
+    <div className="w-64 h-screen bg-gray-900 text-white p-6 fixed left-0 top-0">
       <h2 className="text-2xl font-bold mb-8">
         ThreatWatch
       </h2>

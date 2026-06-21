@@ -69,7 +69,12 @@ This project simulates a lightweight Security Information and Event Management (
 
 ### Dashboard
 
-![Dashboard](docs/dashboard.png)
+![Dashboard](docs/dashboard1.png)
+![Dashboard](docs/dashboard2.png)
+![Dashboard](docs/dashboard3.png)
+![Dashboard](docs/dashboard4.png)
+![Dashboard](docs/dashboard5.png)
+
 
 ### Upload Logs
 

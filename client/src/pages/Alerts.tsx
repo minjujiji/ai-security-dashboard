@@ -29,7 +29,7 @@ const Alerts = () => {
   <div className="flex min-h-screen bg-gray-100">
     <Sidebar />
 
-    <main className="flex-1 p-8">
+    <main className="flex-1 p-8 ml-64">
       <h1 className="text-3xl font-bold mb-6">
         Security Alerts
       </h1>

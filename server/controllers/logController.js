@@ -1,5 +1,7 @@
 const fs = require("fs");
 const pool = require("../config/db");
+// const {generateSecurityAnalysis} = require("../services/geminiService");
+const {generateSecurityAnalysis} = require("../services/ollamaService");
 
 const parseLogContent = (content) => {
   const lines = content
@@ -372,6 +374,51 @@ const getSecuritySummary = async (req, res) => {
   }
 };
 
+const getAISecurityAnalysis = async (req, res) => {
+  try {
+    const summary = await pool.query(
+      `SELECT 
+        (SELECT COUNT(*) FROM log_events) AS total_events,
+        (SELECT COUNT(*) FROM alerts) AS total_alerts,
+        (SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN') AS failed_logins`
+    );
+
+    const topIPs = await pool.query(
+      `SELECT ip_address, COUNT(*) AS failed_attempts
+       FROM log_events
+       WHERE event_type = 'FAILED_LOGIN'
+       GROUP BY ip_address
+       ORDER BY failed_attempts DESC
+       LIMIT 5`
+    );
+
+    const recentAlerts = await pool.query(
+      `SELECT severity, message, ip_address, created_at
+       FROM alerts
+       ORDER BY created_at DESC
+       LIMIT 5`
+    );
+
+    const securityData = {
+      summary: summary.rows[0],
+      topAttackingIPs: topIPs.rows,
+      recentAlerts: recentAlerts.rows,
+    };
+
+    const analysis = await generateSecurityAnalysis(securityData);
+
+    res.status(200).json({
+      analysis,
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      message: "AI analysis failed",
+    });
+  }
+};
+
 module.exports = {
   uploadLog,
   getAllEvents,
@@ -384,5 +431,6 @@ module.exports = {
   getTopAttackingIPs,
   getRecommendations,
   getEventTimeline,
-  getSecuritySummary
+  getSecuritySummary,
+  getAISecurityAnalysis,
 };

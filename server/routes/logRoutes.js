@@ -5,7 +5,7 @@ const router = express.Router();
 const upload = require("../config/multer");
 
 const { uploadLog, getAllEvents, getAllAlerts, getDashboardSummary, getEventsByType, getAlertsBySeverity, getRecentAlerts,
-  getRecentEvents, getTopAttackingIPs, getRecommendations, getEventTimeline, getSecuritySummary } = require("../controllers/logController");
+  getRecentEvents, getTopAttackingIPs, getRecommendations, getEventTimeline, getSecuritySummary, getAISecurityAnalysis, } = require("../controllers/logController");
 
 router.post( "/upload", upload.single("logfile"), uploadLog);
 
@@ -20,5 +20,6 @@ router.get("/top-attacking-ips", getTopAttackingIPs);
 router.get("/recommendations", getRecommendations);
 router.get("/event-timeline", getEventTimeline);
 router.get("/security-summary", getSecuritySummary);
+router.get("/ai-analysis", getAISecurityAnalysis);
 
 module.exports = router;

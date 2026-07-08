@@ -21,11 +21,18 @@ const UploadLogs = () => {
     try {
       setLoading(true);
 
-      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/logs/upload`,formData,
-        {
-          headers: {"Content-Type": "multipart/form-data",},
-        }
-      );
+      const token = localStorage.getItem("token");
+
+        const response = await axios.post(
+          `${import.meta.env.VITE_API_URL}/api/logs/upload`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
       setResult(response.data);
       alert("File uploaded successfully");

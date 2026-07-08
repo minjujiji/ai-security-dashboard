@@ -15,8 +15,15 @@ const Alerts = () => {
 
   useEffect(() => {
     const fetchAlerts = async () => {
+      const token = localStorage.getItem("token");
+
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/logs/alerts`
+        `${import.meta.env.VITE_API_URL}/api/logs/alerts`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       setAlerts(response.data);

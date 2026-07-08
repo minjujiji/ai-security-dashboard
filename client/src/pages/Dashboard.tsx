@@ -64,18 +64,27 @@ const Dashboard = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
   const [securitySummary, setSecuritySummary] = useState<string[]>([]);
+  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
+    const token = localStorage.getItem("token");
+
+    const config = {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    };
     const fetchSummary = async () => {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/summary`);
-      const eventTypeResponse = await axios.get( `${import.meta.env.VITE_API_URL}/api/logs/event-types`);
-      const alertSeverityResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/alert-severity`);
-      const recentAlertsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-alerts`);
-      const recentEventsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-events`);
-      const topIPsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/top-attacking-ips`);
-      const recommendationsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recommendations`);
-      const timelineResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/event-timeline`);
-      const securitySummaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/security-summary`);
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/summary`, config);
+      const eventTypeResponse = await axios.get( `${import.meta.env.VITE_API_URL}/api/logs/event-types`, config);
+      const alertSeverityResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/alert-severity`, config);
+      const recentAlertsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-alerts`, config);
+      const recentEventsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-events`, config);
+      const topIPsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/top-attacking-ips`, config);
+      const recommendationsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recommendations`, config);
+      const timelineResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/event-timeline`, config);
+      const securitySummaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/security-summary`, config);
 
       
       setEventTypes(eventTypeResponse.data);
@@ -91,6 +100,30 @@ const Dashboard = () => {
 
     fetchSummary();
   }, []);
+
+  const generateAIAnalysis = async () => {
+  try {
+    setAiLoading(true);
+
+    const token = localStorage.getItem("token");
+
+    const response = await axios.get(
+      `${import.meta.env.VITE_API_URL}/api/logs/ai-analysis`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    setAiAnalysis(response.data.analysis);
+  } catch (error) {
+    console.error(error);
+    alert("AI analysis failed");
+  } finally {
+    setAiLoading(false);
+  }
+};
 
   const downloadReport = () => {
   if (!summary) return;
@@ -357,6 +390,30 @@ const Dashboard = () => {
         </div>
       </div>
 
+      <div className="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 className="text-xl font-bold mb-4">
+          AI Security Analyst
+        </h2>
+
+        <p className="text-gray-500 mb-4">
+          Generate an AI-powered security analysis using your local Ollama model.
+        </p>
+
+        <button
+          onClick={generateAIAnalysis}
+          disabled={aiLoading}
+          className="bg-gray-900 text-white px-5 py-2 rounded-lg hover:bg-gray-700 disabled:opacity-50"
+        >
+          {aiLoading ? "Generating..." : "Generate AI Analysis"}
+        </button>
+
+        {aiAnalysis && (
+          <div className="mt-6 whitespace-pre-line text-gray-700 border-l-4 border-blue-500 pl-4">
+            {aiAnalysis}
+          </div>
+        )}
+      </div>
+      
       <div className="bg-white p-6 rounded-lg shadow mt-8">
         <h2 className="text-xl font-bold mb-4">
           AI Security Summary

@@ -15,8 +15,15 @@ const Logs = () => {
 
   useEffect(() => {
     const fetchEvents = async () => {
+      const token = localStorage.getItem("token");
+
       const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/logs/events`
+        `${import.meta.env.VITE_API_URL}/api/logs/events`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
       );
 
       setEvents(response.data);

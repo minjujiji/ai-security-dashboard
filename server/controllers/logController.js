@@ -62,10 +62,7 @@ const uploadLog = async (req, res) => {
     const parsedLogs = parseLogContent(fileContent);
     const detectedAlerts = detectThreats(parsedLogs);
 
-    const savedLog = await pool.query(
-      "INSERT INTO logs (filename) VALUES ($1) RETURNING *",
-      [req.file.filename]
-    );
+    const savedLog = await pool.query( "INSERT INTO logs (filename, user_id) VALUES ($1, $2) RETURNING *", [req.file.filename, req.user.id]);
 
     const logId = savedLog.rows[0].id;
 
@@ -130,8 +127,12 @@ const getAllEvents = async (req, res) => {
   try {
 
     const events = await pool.query(
-      `SELECT * FROM log_events
-       ORDER BY event_timestamp DESC`
+      `SELECT log_events.*
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1
+      ORDER BY log_events.event_timestamp DESC`,
+      [req.user.id]
     );
 
     res.status(200).json(events.rows);
@@ -150,8 +151,12 @@ const getAllEvents = async (req, res) => {
 const getAllAlerts = async (req, res) => {
   try {
     const alerts = await pool.query(
-      `SELECT * FROM alerts
-       ORDER BY created_at DESC`
+      `SELECT alerts.*
+      FROM alerts
+      JOIN logs ON alerts.log_id = logs.id
+      WHERE logs.user_id = $1
+      ORDER BY alerts.created_at DESC`,
+      [req.user.id]
     );
 
     res.status(200).json(alerts.rows);
@@ -167,10 +172,13 @@ const getAllAlerts = async (req, res) => {
 const getEventsByType = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT event_type, COUNT(*) 
-       FROM log_events
-       GROUP BY event_type
-       ORDER BY COUNT(*) DESC`
+      `SELECT log_events.event_type, COUNT(*)
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1
+      GROUP BY log_events.event_type
+      ORDER BY COUNT(*) DESC`,
+      [req.user.id]
     );
 
     res.status(200).json(result.rows);
@@ -186,10 +194,13 @@ const getEventsByType = async (req, res) => {
 const getAlertsBySeverity = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT severity, COUNT(*)
-       FROM alerts
-       GROUP BY severity
-       ORDER BY COUNT(*) DESC`
+      `SELECT alerts.severity, COUNT(*)
+      FROM alerts
+      JOIN logs ON alerts.log_id = logs.id
+      WHERE logs.user_id = $1
+      GROUP BY alerts.severity
+      ORDER BY COUNT(*) DESC`,
+      [req.user.id]
     );
 
     res.status(200).json(result.rows);
@@ -202,19 +213,35 @@ const getAlertsBySeverity = async (req, res) => {
 const getDashboardSummary = async (req, res) => {
   try {
     const totalEvents = await pool.query(
-      "SELECT COUNT(*) FROM log_events"
-    );
+  `SELECT COUNT(*)
+   FROM log_events
+   JOIN logs ON log_events.log_id = logs.id
+   WHERE logs.user_id = $1`,
+  [req.user.id]
+);
 
     const totalAlerts = await pool.query(
-      "SELECT COUNT(*) FROM alerts"
-    );
+  `SELECT COUNT(*)
+   FROM alerts
+   JOIN logs ON alerts.log_id = logs.id
+   WHERE logs.user_id = $1`,
+  [req.user.id]
+);
 
     const highAlerts = await pool.query(
-      "SELECT COUNT(*) FROM alerts WHERE severity = 'High'"
+      `SELECT COUNT(*)
+      FROM alerts
+      JOIN logs ON alerts.log_id = logs.id
+      WHERE logs.user_id = $1 AND alerts.severity = 'High'`,
+      [req.user.id]
     );
 
     const failedLogins = await pool.query(
-      "SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN'"
+      `SELECT COUNT(*)
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1 AND log_events.event_type = 'FAILED_LOGIN'`,
+      [req.user.id]
     );
 
     const riskScore = Number(highAlerts.rows[0].count) * 30 + Number(failedLogins.rows[0].count) * 5;
@@ -239,10 +266,13 @@ const getDashboardSummary = async (req, res) => {
 const getRecentAlerts = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT *
-       FROM alerts
-       ORDER BY created_at DESC
-       LIMIT 5`
+      `SELECT alerts.*
+      FROM alerts
+      JOIN logs ON alerts.log_id = logs.id
+      WHERE logs.user_id = $1
+      ORDER BY alerts.created_at DESC
+      LIMIT 5`,
+      [req.user.id]
     );
 
     res.status(200).json(result.rows);
@@ -255,10 +285,13 @@ const getRecentAlerts = async (req, res) => {
 const getRecentEvents = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT *
-       FROM log_events
-       ORDER BY event_timestamp DESC
-       LIMIT 5`
+      `SELECT log_events.*
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1
+      ORDER BY log_events.event_timestamp DESC
+      LIMIT 5`,
+      [req.user.id]
     );
 
     res.status(200).json(result.rows);
@@ -271,12 +304,15 @@ const getRecentEvents = async (req, res) => {
 const getTopAttackingIPs = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT ip_address, COUNT(*) AS failed_attempts
-       FROM log_events
-       WHERE event_type = 'FAILED_LOGIN'
-       GROUP BY ip_address
-       ORDER BY failed_attempts DESC
-       LIMIT 5`
+      `SELECT log_events.ip_address, COUNT(*) AS failed_attempts
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1
+      AND log_events.event_type = 'FAILED_LOGIN'
+      GROUP BY log_events.ip_address
+      ORDER BY failed_attempts DESC
+      LIMIT 5`,
+      [req.user.id]
     );
 
     res.status(200).json(result.rows);
@@ -292,12 +328,15 @@ const getTopAttackingIPs = async (req, res) => {
 const getRecommendations = async (req, res) => {
   try {
     const topIPs = await pool.query(
-      `SELECT ip_address, COUNT(*) AS failed_attempts
-       FROM log_events
-       WHERE event_type = 'FAILED_LOGIN'
-       GROUP BY ip_address
-       HAVING COUNT(*) >= 3
-       ORDER BY failed_attempts DESC`
+      `SELECT log_events.ip_address, COUNT(*) AS failed_attempts
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1
+      AND log_events.event_type = 'FAILED_LOGIN'
+      GROUP BY log_events.ip_address
+      HAVING COUNT(*) >= 3
+      ORDER BY failed_attempts DESC`,
+      [req.user.id]
     );
 
     const recommendations = topIPs.rows.map((ip) => ({
@@ -316,10 +355,15 @@ const getRecommendations = async (req, res) => {
 const getEventTimeline = async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT DATE(event_timestamp) AS date, COUNT(*) AS count
-       FROM log_events
-       GROUP BY DATE(event_timestamp)
-       ORDER BY date ASC`
+     `SELECT 
+      log_events.event_timestamp::date AS event_date,
+      COUNT(*) AS count
+      FROM log_events
+      JOIN logs ON log_events.log_id = logs.id
+      WHERE logs.user_id = $1
+      GROUP BY log_events.event_timestamp::date
+      ORDER BY event_date ASC`,
+      [req.user.id]
     );
 
     res.status(200).json(result.rows);

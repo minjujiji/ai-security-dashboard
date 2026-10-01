@@ -1,7 +1,11 @@
 const fs = require("fs");
 const pool = require("../config/db");
-// const {generateSecurityAnalysis} = require("../services/geminiService");
-const {generateSecurityAnalysis} = require("../services/ollamaService");
+const { analyzeSecurityData } = require("../services/aiClient");
+const {
+  computeRiskScore,
+  severityFromScore,
+  combineSeverity,
+} = require("../services/riskService");
 
 const parseLogContent = (content) => {
   const lines = content
@@ -9,21 +13,24 @@ const parseLogContent = (content) => {
     .map((line) => line.trim())
     .filter((line) => line.length > 0);
 
-  return lines.map((line) => {
-    const parts = line.split(" ");
+  return lines
+    .map((line) => {
+      const parts = line.split(" ");
 
-    const date = parts[0];
-    const time = parts[1];
-    const eventType = parts[2];
-    const ipAddress = parts[3];
+      if (parts.length < 4) {
+        return null;
+      }
 
-    return {
-      timestamp: `${date} ${time}`,
-      eventType,
-      ipAddress,
-      rawLog: line,
-    };
-  });
+      const [date, time, eventType, ipAddress] = parts;
+
+      return {
+        timestamp: `${date} ${time}`,
+        eventType,
+        ipAddress,
+        rawLog: line,
+      };
+    })
+    .filter((log) => log !== null);
 };
 
 const detectThreats = (parsedLogs) => {
@@ -244,9 +251,10 @@ const getDashboardSummary = async (req, res) => {
       [req.user.id]
     );
 
-    const riskScore = Number(highAlerts.rows[0].count) * 30 + Number(failedLogins.rows[0].count) * 5;
-
-    const finalRiskScore = Math.min(riskScore, 100);
+    const finalRiskScore = computeRiskScore(
+      highAlerts.rows[0].count,
+      failedLogins.rows[0].count
+    );
 
     res.status(200).json({
       totalEvents: Number(totalEvents.rows[0].count),
@@ -376,24 +384,38 @@ const getEventTimeline = async (req, res) => {
 const getSecuritySummary = async (req, res) => {
   try {
     const totalEvents = await pool.query(
-      "SELECT COUNT(*) FROM log_events"
+      `SELECT COUNT(*)
+       FROM log_events
+       JOIN logs ON log_events.log_id = logs.id
+       WHERE logs.user_id = $1`,
+      [req.user.id]
     );
 
     const failedLogins = await pool.query(
-      "SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN'"
+      `SELECT COUNT(*)
+       FROM log_events
+       JOIN logs ON log_events.log_id = logs.id
+       WHERE logs.user_id = $1 AND log_events.event_type = 'FAILED_LOGIN'`,
+      [req.user.id]
     );
 
     const totalAlerts = await pool.query(
-      "SELECT COUNT(*) FROM alerts"
+      `SELECT COUNT(*)
+       FROM alerts
+       JOIN logs ON alerts.log_id = logs.id
+       WHERE logs.user_id = $1`,
+      [req.user.id]
     );
 
     const topIP = await pool.query(
-      `SELECT ip_address, COUNT(*) AS failed_attempts
+      `SELECT log_events.ip_address, COUNT(*) AS failed_attempts
        FROM log_events
-       WHERE event_type = 'FAILED_LOGIN'
-       GROUP BY ip_address
+       JOIN logs ON log_events.log_id = logs.id
+       WHERE logs.user_id = $1 AND log_events.event_type = 'FAILED_LOGIN'
+       GROUP BY log_events.ip_address
        ORDER BY failed_attempts DESC
-       LIMIT 1`
+       LIMIT 1`,
+      [req.user.id]
     );
 
     const topIpAddress =
@@ -421,38 +443,63 @@ const getSecuritySummary = async (req, res) => {
 const getAISecurityAnalysis = async (req, res) => {
   try {
     const summary = await pool.query(
-      `SELECT 
-        (SELECT COUNT(*) FROM log_events) AS total_events,
-        (SELECT COUNT(*) FROM alerts) AS total_alerts,
-        (SELECT COUNT(*) FROM log_events WHERE event_type = 'FAILED_LOGIN') AS failed_logins`
+      `SELECT
+        (SELECT COUNT(*) FROM log_events JOIN logs ON log_events.log_id = logs.id WHERE logs.user_id = $1) AS total_events,
+        (SELECT COUNT(*) FROM alerts JOIN logs ON alerts.log_id = logs.id WHERE logs.user_id = $1) AS total_alerts,
+        (SELECT COUNT(*) FROM alerts JOIN logs ON alerts.log_id = logs.id WHERE logs.user_id = $1 AND alerts.severity = 'High') AS high_alerts,
+        (SELECT COUNT(*) FROM log_events JOIN logs ON log_events.log_id = logs.id WHERE logs.user_id = $1 AND log_events.event_type = 'FAILED_LOGIN') AS failed_logins`,
+      [req.user.id]
     );
 
     const topIPs = await pool.query(
-      `SELECT ip_address, COUNT(*) AS failed_attempts
+      `SELECT log_events.ip_address, COUNT(*) AS failed_attempts
        FROM log_events
-       WHERE event_type = 'FAILED_LOGIN'
-       GROUP BY ip_address
+       JOIN logs ON log_events.log_id = logs.id
+       WHERE logs.user_id = $1 AND log_events.event_type = 'FAILED_LOGIN'
+       GROUP BY log_events.ip_address
        ORDER BY failed_attempts DESC
-       LIMIT 5`
+       LIMIT 5`,
+      [req.user.id]
     );
 
     const recentAlerts = await pool.query(
-      `SELECT severity, message, ip_address, created_at
+      `SELECT alerts.severity, alerts.message, alerts.ip_address, alerts.created_at
        FROM alerts
-       ORDER BY created_at DESC
-       LIMIT 5`
+       JOIN logs ON alerts.log_id = logs.id
+       WHERE logs.user_id = $1
+       ORDER BY alerts.created_at DESC
+       LIMIT 5`,
+      [req.user.id]
     );
 
-    const securityData = {
-      summary: summary.rows[0],
-      topAttackingIPs: topIPs.rows,
-      recentAlerts: recentAlerts.rows,
-    };
+    // Deterministic rules first
+    const row = summary.rows[0];
+    const riskScore = computeRiskScore(row.high_alerts, row.failed_logins);
+    const ruleSeverity = severityFromScore(riskScore);
 
-    const analysis = await generateSecurityAnalysis(securityData);
+    // AI reasoning second (FastAPI + Gemini, Ollama fallback)
+    const ai = await analyzeSecurityData({
+      summary: row,
+      top_attacking_ips: topIPs.rows,
+      recent_alerts: recentAlerts.rows,
+      risk_score: riskScore,
+      rule_based_severity: ruleSeverity,
+    });
+
+    // Final severity is never lower than what the rules established
+    const finalSeverity = combineSeverity(ruleSeverity, ai.severity);
 
     res.status(200).json({
-      analysis,
+      severity: finalSeverity,
+      ruleSeverity,
+      aiSeverity: ai.severity || null,
+      riskScore,
+      mainFinding: ai.main_finding,
+      summary: ai.summary,
+      suspiciousIps: ai.suspicious_ips,
+      recommendedActions: ai.recommended_actions,
+      provider: ai.provider,
+      model: ai.model,
     });
   } catch (error) {
     console.error(error);

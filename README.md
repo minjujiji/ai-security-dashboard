@@ -1,6 +1,6 @@
 # AI-Powered Security Dashboard
 
-A full-stack cybersecurity platform that ingests security logs, detects suspicious activity, generates alerts, visualizes security metrics, and provides AI-powered security analysis using a local Large Language Model (Ollama + Llama 3.2).
+A full-stack cybersecurity platform that ingests security logs, detects suspicious activity, generates alerts, visualizes security metrics, and provides AI-powered security analysis using the Google Gemini API through a Python FastAPI microservice (with a local Ollama fallback).
 
 ---
 
@@ -57,11 +57,10 @@ This project simulates a lightweight Security Information and Event Management (
 
 ### AI Security Analyst
 
-* Local AI integration using Ollama
-* Llama 3.2 powered analysis
-* AI-generated security summaries
-* Automated security recommendations
-* Natural language threat analysis
+* Python FastAPI microservice calling the Google Gemini API
+* Structured JSON output (severity, main finding, summary, suspicious IPs, actions) validated with Pydantic
+* Hybrid severity: the AI rating is combined with the deterministic rule-based rating, and the final severity is never lower than the rules established
+* Automatic fallback to a local Ollama model (Llama 3.2) if the AI service is down
 
 ---
 
@@ -116,9 +115,9 @@ This project simulates a lightweight Security Information and Event Management (
 
 ### AI Integration
 
-* Ollama
-* Llama 3.2
-* Local LLM Inference
+* Python, FastAPI, Pydantic
+* Google Gemini API (structured output)
+* Ollama + Llama 3.2 (fallback)
 
 ### Development Tools
 
@@ -148,7 +147,7 @@ PostgreSQL Database
 ↓
 Dashboard Analytics
 ↓
-AI Security Analysis (Ollama)
+AI Service (FastAPI + Gemini) combined with rule-based severity
 ↓
 Security Insights & Recommendations
 
@@ -168,6 +167,11 @@ ai-security-dashboard/
 │   ├── routes/
 │   ├── services/
 │   ├── config/
+│   └── schema.sql
+│
+├── ai-service/        # FastAPI + Gemini
+│   ├── main.py
+│   └── tests/
 │
 ├── uploads/
 │
@@ -217,6 +221,25 @@ Security events are analyzed by a local LLM to generate:
 * Threat Summaries
 * Risk Assessments
 * Security Recommendations
+
+---
+
+## Running Locally
+
+1. **Database:** create a PostgreSQL database and run `server/schema.sql`.
+2. **AI service:**
+   ```bash
+   cd ai-service
+   python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
+   pip install -r requirements.txt
+   cp .env.example .env        # add GEMINI_API_KEY
+   uvicorn main:app --port 8000
+   pytest                      # optional
+   ```
+3. **API:** `cd server && npm install`, copy `.env.example` to `.env`, then `npm run dev`.
+4. **Client:** `cd client && npm install`, copy `.env.example` to `.env`, then `npm run dev`.
+
+If the AI service is not running, the API falls back to Ollama (`ollama run llama3.2`).
 
 ---
 

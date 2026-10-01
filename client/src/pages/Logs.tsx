@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import Sidebar from "../components/Sidebar";
 
 interface LogEvent {
@@ -15,16 +15,7 @@ const Logs = () => {
 
   useEffect(() => {
     const fetchEvents = async () => {
-      const token = localStorage.getItem("token");
-
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/logs/events`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get("/api/logs/events");
 
       setEvents(response.data);
     };

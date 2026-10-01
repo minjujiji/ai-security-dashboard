@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import Sidebar from "../components/Sidebar";
 
 interface Alert {
@@ -15,16 +15,7 @@ const Alerts = () => {
 
   useEffect(() => {
     const fetchAlerts = async () => {
-      const token = localStorage.getItem("token");
-
-      const response = await axios.get(
-        `${import.meta.env.VITE_API_URL}/api/logs/alerts`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        }
-      );
+      const response = await api.get("/api/logs/alerts");
 
       setAlerts(response.data);
     };

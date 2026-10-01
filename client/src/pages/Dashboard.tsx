@@ -1,7 +1,19 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import Sidebar from "../components/Sidebar";
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line,  } from "recharts";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line,
+  RadialBarChart,
+  RadialBar,
+  PolarAngleAxis,
+} from "recharts";
 import jsPDF from "jspdf";
 
 interface Summary {
@@ -54,6 +66,29 @@ interface TimelineData {
   count: string;
 }
 
+interface AIAnalysisResult {
+  severity: string;
+  ruleSeverity: string;
+  aiSeverity: string | null;
+  riskScore: number;
+  mainFinding: string;
+  summary: string;
+  suspiciousIps: string[];
+  recommendedActions: string[];
+  provider: string;
+  model: string;
+}
+
+const severityBadge: Record<string, string> = {
+  Low: "bg-green-100 text-green-700",
+  Medium: "bg-yellow-100 text-yellow-700",
+  High: "bg-orange-100 text-orange-700",
+  Critical: "bg-red-100 text-red-700",
+};
+
+const riskColor = (score: number) =>
+  score >= 70 ? "#dc2626" : score >= 40 ? "#ca8a04" : "#16a34a";
+
 const Dashboard = () => {
   const [summary, setSummary] = useState<Summary | null>(null);
   const [eventTypes, setEventTypes] = useState<EventTypeData[]>([]);
@@ -64,29 +99,21 @@ const Dashboard = () => {
   const [recommendations, setRecommendations] = useState<Recommendation[]>([]);
   const [timelineData, setTimelineData] = useState<TimelineData[]>([]);
   const [securitySummary, setSecuritySummary] = useState<string[]>([]);
-  const [aiAnalysis, setAiAnalysis] = useState("");
+  const [aiAnalysis, setAiAnalysis] = useState<AIAnalysisResult | null>(null);
   const [aiLoading, setAiLoading] = useState(false);
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
-
-    const config = {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    };
     const fetchSummary = async () => {
-      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/summary`, config);
-      const eventTypeResponse = await axios.get( `${import.meta.env.VITE_API_URL}/api/logs/event-types`, config);
-      const alertSeverityResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/alert-severity`, config);
-      const recentAlertsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-alerts`, config);
-      const recentEventsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recent-events`, config);
-      const topIPsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/top-attacking-ips`, config);
-      const recommendationsResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/recommendations`, config);
-      const timelineResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/event-timeline`, config);
-      const securitySummaryResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/logs/security-summary`, config);
+      const response = await api.get("/api/logs/summary");
+      const eventTypeResponse = await api.get("/api/logs/event-types");
+      const alertSeverityResponse = await api.get("/api/logs/alert-severity");
+      const recentAlertsResponse = await api.get("/api/logs/recent-alerts");
+      const recentEventsResponse = await api.get("/api/logs/recent-events");
+      const topIPsResponse = await api.get("/api/logs/top-attacking-ips");
+      const recommendationsResponse = await api.get("/api/logs/recommendations");
+      const timelineResponse = await api.get("/api/logs/event-timeline");
+      const securitySummaryResponse = await api.get("/api/logs/security-summary");
 
-      
       setEventTypes(eventTypeResponse.data);
       setSummary(response.data);
       setAlertSeverity(alertSeverityResponse.data);
@@ -105,18 +132,9 @@ const Dashboard = () => {
   try {
     setAiLoading(true);
 
-    const token = localStorage.getItem("token");
+    const response = await api.get("/api/logs/ai-analysis");
 
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_URL}/api/logs/ai-analysis`,
-      {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    setAiAnalysis(response.data.analysis);
+    setAiAnalysis(response.data);
   } catch (error) {
     console.error(error);
     alert("AI analysis failed");
@@ -216,6 +234,37 @@ const Dashboard = () => {
 
       <div className="bg-white p-6 rounded-lg shadow mt-8">
         <h2 className="text-xl font-bold mb-4">
+          Overall Risk Gauge
+        </h2>
+
+        <div className="h-64">
+          <ResponsiveContainer width="100%" height="100%">
+            <RadialBarChart
+              innerRadius="70%"
+              outerRadius="100%"
+              data={[{ name: "Risk", value: summary.riskScore, fill: riskColor(summary.riskScore) }]}
+              startAngle={180}
+              endAngle={0}
+              cy="75%"
+            >
+              <PolarAngleAxis type="number" domain={[0, 100]} tick={false} />
+              <RadialBar dataKey="value" background cornerRadius={10} />
+              <text
+                x="50%"
+                y="70%"
+                textAnchor="middle"
+                className="text-4xl font-bold"
+                fill={riskColor(summary.riskScore)}
+              >
+                {summary.riskScore}/100
+              </text>
+            </RadialBarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white p-6 rounded-lg shadow mt-8">
+        <h2 className="text-xl font-bold mb-4">
           Events by Type
         </h2>
 
@@ -298,6 +347,24 @@ const Dashboard = () => {
         <h2 className="text-xl font-bold mb-4">
           Top Attacking IPs
         </h2>
+
+        {topIPs.length > 0 && (
+          <div className="h-64 mb-6">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={topIPs.map((ip) => ({
+                  ip: ip.ip_address,
+                  failed: Number(ip.failed_attempts),
+                }))}
+              >
+                <XAxis dataKey="ip" />
+                <YAxis allowDecimals={false} />
+                <Tooltip />
+                <Bar dataKey="failed" name="Failed attempts" />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        )}
 
         {topIPs.length === 0 ? (
         <p className="text-gray-500">
@@ -396,7 +463,7 @@ const Dashboard = () => {
         </h2>
 
         <p className="text-gray-500 mb-4">
-          Generate an AI-powered security analysis using your local Ollama model.
+          Gemini (via the FastAPI AI service) rates the threat level. The final severity is the higher of the AI rating and the rule-based rating.
         </p>
 
         <button
@@ -408,8 +475,53 @@ const Dashboard = () => {
         </button>
 
         {aiAnalysis && (
-          <div className="mt-6 whitespace-pre-line text-gray-700 border-l-4 border-blue-500 pl-4">
-            {aiAnalysis}
+          <div className="mt-6 space-y-4 text-gray-700 border-l-4 border-blue-500 pl-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span
+                className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                  severityBadge[aiAnalysis.severity] ?? "bg-gray-100 text-gray-700"
+                }`}
+              >
+                {aiAnalysis.severity} severity
+              </span>
+              <span className="text-xs text-gray-500">
+                Rules: {aiAnalysis.ruleSeverity} | AI: {aiAnalysis.aiSeverity ?? "n/a"} |{" "}
+                {aiAnalysis.provider} ({aiAnalysis.model})
+              </span>
+            </div>
+
+            {aiAnalysis.mainFinding && (
+              <p className="font-semibold">{aiAnalysis.mainFinding}</p>
+            )}
+
+            {aiAnalysis.summary && <p>{aiAnalysis.summary}</p>}
+
+            {aiAnalysis.suspiciousIps.length > 0 && (
+              <div>
+                <p className="font-semibold">Suspicious IPs</p>
+                <div className="flex flex-wrap gap-2 mt-1">
+                  {aiAnalysis.suspiciousIps.map((ip) => (
+                    <span
+                      key={ip}
+                      className="bg-red-100 text-red-700 px-3 py-1 rounded-full text-sm"
+                    >
+                      {ip}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {aiAnalysis.recommendedActions.length > 0 && (
+              <div>
+                <p className="font-semibold">Recommended actions</p>
+                <ul className="list-disc ml-5 mt-1 space-y-1">
+                  {aiAnalysis.recommendedActions.map((action, i) => (
+                    <li key={i}>{action}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>

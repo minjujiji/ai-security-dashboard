@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../services/api";
 import Sidebar from "../components/Sidebar";
 
 const UploadLogs = () => {
@@ -21,18 +21,11 @@ const UploadLogs = () => {
     try {
       setLoading(true);
 
-      const token = localStorage.getItem("token");
-
-        const response = await axios.post(
-          `${import.meta.env.VITE_API_URL}/api/logs/upload`,
-          formData,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-              Authorization: `Bearer ${token}`,
-            },
-          }
-        );
+      const response = await api.post("/api/logs/upload", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      });
 
       setResult(response.data);
       alert("File uploaded successfully");
